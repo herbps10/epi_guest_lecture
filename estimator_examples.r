@@ -1,3 +1,5 @@
+library(tidyverse)
+
 simulate <- function(N = 1e2, alpha = 1) {
   # Generate covariate
   X <- rnorm(N)
@@ -17,12 +19,16 @@ simulate <- function(N = 1e2, alpha = 1) {
 }
 
 N <- 100
-alpha <- 3 # Higher values of alpha lead to more extreme positivity violations
+
+# Higher values of alpha lead to more extreme positivity violations
+alpha <- 1 
 
 # Estimate the true average treatment effect by taking a very large
 # sample and then taking the average difference between the counterfactual outcomes
-true_ate <- with(simulate(1e5), mean(Y1 - Y0))
+true_ate <- with(simulate(1e5, alpha), mean(Y1 - Y0))
 
+# Generate data
+set.seed(10016)
 data <- simulate(N, alpha)
 
 # Plot generated data
@@ -34,15 +40,14 @@ g_model <- glm(A ~ X, data = data, family = "binomial")
 g_hat   <- predict(g_model, type = "response")
 
 # Plot estimated propensity scores
-plot(data$X, g_hat, xlab = "X", ylab = "Estimated propensity score")
 hist(g_hat, xlab = "Estimated propensity score")
 hist(1 / g_hat, xlab = "Estimated inverse propensity score")
 
 # Estimate outcome regression model
 m_model <- glm(Y ~ A + X, data = data, family = "binomial")
 m_hat   <- predict(m_model, type = "response")
-m0_hat  <- predict(m_model, type = "response", newdata = transform(data, A = 0))
-m1_hat  <- predict(m_model, type = "response", newdata = transform(data, A = 1))
+m0_hat  <- predict(m_model, type = "response", newdata = mutate(data, A = 0))
+m1_hat  <- predict(m_model, type = "response", newdata = mutate(data, A = 1))
 
 # Plot outcome regression predictions
 plot(data$X, data$Y, xlab = "X", ylab = "Y", col = ifelse(data$A == 1, "red", "black"), ylim = c(0, 1))
@@ -73,12 +78,14 @@ aiptw
 
 # Form confidence interval
 
-D <- with(data, m1_hat - m0_hat + (A / g_hat - (1 - A) / (1 - g_hat)) * (Y - m_hat))
+D <- with(data, m1_hat - m0_hat + iptw_weights * (Y - m_hat))
 se <- sd(D) / sqrt(N)
 ci <- aiptw + qnorm(c(0.025, 0.975)) * se
 ci
 
-# Targeted Minimum Loss-Based Estimation
+#
+# Targeted Minimum Loss-Based Estimation (TMLE)
+#
 clever1 <- with(data, A / g_hat)
 clever0 <- with(data, -(1 - A) / (1 - g_hat))
 clever <- with(data, A / g_hat - (1 - A) / (1 - g_hat))
