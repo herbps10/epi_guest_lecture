@@ -18,17 +18,18 @@ simulate <- function(N = 1e2, alpha = 1) {
   data.frame(X, A, Y1, Y0, Y)
 }
 
-N <- 100
+N <- 1000
 
 # Higher values of alpha lead to more extreme positivity violations
-alpha <- 1 
+alpha <- 3 
 
 # Estimate the true average treatment effect by taking a very large
 # sample and then taking the average difference between the counterfactual outcomes
 true_ate <- with(simulate(1e5, alpha), mean(Y1 - Y0))
+true_ate
 
 # Generate data
-set.seed(10016)
+set.seed(10019)
 data <- simulate(N, alpha)
 
 # Plot generated data
@@ -88,7 +89,7 @@ ci
 #
 clever1 <- with(data, A / g_hat)
 clever0 <- with(data, -(1 - A) / (1 - g_hat))
-clever <- with(data, A / g_hat - (1 - A) / (1 - g_hat))
+clever  <- with(data, A / g_hat - (1 - A) / (1 - g_hat))
 
 fluctuation_model <- glm(Y ~ -1 + clever + offset(qlogis(m_hat)), data = data, family = "binomial")
 epsilon <- coef(fluctuation_model)

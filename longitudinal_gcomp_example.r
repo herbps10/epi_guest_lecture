@@ -1,4 +1,6 @@
 library(tidyverse)
+library(ranger)
+library(ltmle)
 
 #
 # Simulation data-generating process
@@ -37,7 +39,7 @@ simulate <- function(N = 1e2, counterfactual = FALSE) {
 mean(simulate(1e5, counterfactual = TRUE)$Y)
 
 set.seed(10016)
-N <- 25
+N <- 1e3
 data <- simulate(N)
 
 # First, try fitting a normal regression model...
@@ -87,7 +89,7 @@ ylim <- range(c(data$L0, data$L1, data$L2, data$Y))
 
 plot_settings <- list(
   scale_color_manual(values = c("blue", "red"), drop = FALSE),
-  scale_x_continuous(breaks = c(1:4), limits = c(1, 4)),
+  scale_x_continuous(breaks = c(1:4), limits = c(1, 4), labels = c(0:3)),
   scale_y_continuous(limits = ylim),
   guides(color = guide_legend("Treatment"))
 )
@@ -169,3 +171,30 @@ data |>
   plot_settings
   
 mean(data$prediction3)
+
+#
+# Example LTMLE code
+#
+ltmle_fit <- ltmle(
+  data[, c("L0", "A0", "L1", "A1", "L2", "A2", "Y")], 
+  Anodes = c("A0", "A1", "A2"), 
+  Lnodes = c("L1", "L2"), 
+  Ynodes = "Y",  
+  abar = c(1, 1, 1)
+)
+summary(ltmle_fit)
+
+#
+# Example LMTP code
+#
+lmtp_fit <- lmtp::lmtp_tmle(
+  data,
+  trt = c("A0", "A1", "A2"),
+  outcome = "Y",
+  time_vary = list("L0", "L1", "L2"),
+  mtp = FALSE,
+  outcome_type = "continuous", 
+  shift = lmtp::static_binary_on
+)
+
+lmtp_fit
